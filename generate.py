@@ -36,7 +36,7 @@ def font(size, bold=False):
 def download(path):
     r = requests.get(IMG + path, timeout=30)
     r.raise_for_status()
-    return Image.open(BytesIO(r.content)).convert("RGB")
+    return Image.open(BytesIO(r.content)).convert("RGBA")
 
 
 def fit_cover(im):
@@ -48,7 +48,7 @@ def fit_cover(im):
     return im.crop((left, top, left + W, top + H))
 
 
-def wrap(draw, text, fnt, max_width, max_lines=3):
+def wrap(draw, text, fnt, max_width, max_lines=4):
     words = (text or "").split()
     lines, line = [], ""
     for word in words:
@@ -66,61 +66,130 @@ def wrap(draw, text, fnt, max_width, max_lines=3):
     return "\n".join(lines)
 
 
+def get_logo(media_type, media_id):
+    """Prefer a French TMDB logo, then an unlabelled or English logo."""
+    data = api(
+        f"/{media_type}/{media_id}/images",
+        include_image_language=f"{LANGUAGE.split('-')[0]},null,en",
+    )
+    logos = data.get("logos", [])
+    if not logos:
+        return None
+
+    def score(logo):
+        lang = logo.get("iso_639_1")
+        vote = float(logo.get("vote_average") or 0)
+        width = int(logo.get("width") or 0)
+        if lang == LANGUAGE.split("-")[0]:
+            return (3, vote, width)
+        if lang is None:
+            return (2, vote, width)
+        if lang == "en":
+            return (1, vote, width)
+        return (0, vote, width)
+
+    logos.sort(key=score, reverse=True)
+    return logos[0].get("file_path")
+
+
+def paste_logo(base, logo_path, max_width=660, max_height=190, x=100, y=315):
+    if not logo_path:
+        return False
+    try:
+        logo = download(logo_path)
+        logo.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+        shadow = Image.new("RGBA", logo.size, (0, 0, 0, 0))
+        alpha = logo.getchannel("A")
+        shadow.putalpha(alpha.filter(ImageFilter.GaussianBlur(7)))
+        shadow_layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+        shadow_layer.alpha_composite(shadow, (x + 5, y + 7))
+        base.alpha_composite(shadow_layer)
+        base.alpha_composite(logo, (x, y))
+        return True
+    except Exception:
+        return False
+
+
 def make_wallpaper(item, media_type):
     title = item.get("title") or item.get("name") or "Sans titre"
     overview = item.get("overview") or ""
     date = item.get("release_date") or item.get("first_air_date") or ""
     year = date[:4] if date else ""
-    rating = item.get("vote_average")
     backdrop = item.get("backdrop_path")
     if not backdrop:
         return
 
-    bg = fit_cover(download(backdrop)).filter(ImageFilter.GaussianBlur(0.4))
-    dark = Image.new("RGBA", (W, H), (0, 0, 0, 80))
-    bg = Image.alpha_composite(bg.convert("RGBA"), dark)
+    details = api(f"/{media_type}/{item['id']}", language=LANGUAGE)
+    rating = details.get("vote_average", item.get("vote_average"))
+    backdrop = details.get("backdrop_path") or backdrop
+    overview = details.get("overview") or overview
 
-    # Gradient sombre à gauche pour conserver une excellente lisibilité.
+    bg = fit_cover(download(backdrop)).filter(ImageFilter.GaussianBlur(0.25))
+
+    dark = Image.new("RGBA", (W, H), (0, 0, 0, 58))
+    bg = Image.alpha_composite(bg, dark)
+
+    # Dégradé sombre à gauche, inspiré du rendu cinéma de Projectivy.
     grad = Image.new("L", (W, 1))
     px = grad.load()
     for x in range(W):
-        px[x, 0] = int(190 * max(0, 1 - x / (W * 0.72)))
+        t = x / W
+        value = int(205 * (1 - t / 0.62) ** 1.55) if t < 0.62 else 0
+        px[x, 0] = max(0, min(205, value))
     grad = grad.resize((W, H))
     overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     overlay.putalpha(grad)
     bg = Image.alpha_composite(bg, overlay)
 
     draw = ImageDraw.Draw(bg)
-    title_font = font(82, bold=True)
-    meta_font = font(28)
-    body_font = font(31)
+    title_font = font(78, bold=True)
+    meta_font = font(27)
+    body_font = font(30)
 
     x = 100
-    draw.text((x + 2, 430 + 2), title, font=title_font, fill=(0, 0, 0, 210))
-    draw.text((x, 430), title, font=title_font, fill="white")
+    logo_path = get_logo(media_type, item["id"])
+    logo_ok = paste_logo(bg, logo_path, x=x, y=315)
 
-    meta = f"{year}  •  TMDB {rating:.1f}" if isinstance(rating, (int, float)) else year
-    draw.text((x, 535), meta, font=meta_font, fill=(220, 220, 220, 255))
+    title_y = 430 if logo_ok else 390
+    if not logo_ok:
+        draw.text((x + 3, title_y + 3), title, font=title_font, fill=(0, 0, 0, 220))
+        draw.text((x, title_y), title, font=title_font, fill="white")
+        title_y += 115
+
+    genres = details.get("genres") or []
+    genre = genres[0].get("name") if genres else ""
+    if media_type == "movie":
+        runtime = details.get("runtime")
+        extra = f"{runtime} min" if runtime else ""
+    else:
+        seasons = details.get("number_of_seasons")
+        extra = f"{seasons} saison" + ("s" if seasons and seasons > 1 else "") if seasons else ""
+
+    parts = [p for p in [genre, year, extra, f"TMDB {rating:.1f}" if isinstance(rating, (int, float)) else ""] if p]
+    meta = "  •  ".join(parts)
+    draw.text((x, title_y + 5), meta, font=meta_font, fill=(210, 210, 210, 255))
 
     if overview:
-        text = wrap(draw, overview, body_font, 690, 4)
-        draw.multiline_text((x, 600), text, font=body_font, fill=(245, 245, 245, 255), spacing=12)
+        text = wrap(draw, overview, body_font, 700, 4)
+        draw.multiline_text((x, title_y + 70), text, font=body_font, fill=(245, 245, 245, 255), spacing=11)
 
-    filename = f"{media_type}_{item['id']}_{year}_{title}".replace("/", "_").replace("\\", "_")
+    prefix = "film" if media_type == "movie" else "serie"
+    filename = f"{prefix}_{item['id']}_{year}_{title}".replace("/", "_").replace("\\", "_")
     filename = "".join(c if c.isalnum() or c in " ._-" else "_" for c in filename)[:100]
     bg.convert("RGB").save(OUT / f"{filename}.jpg", quality=94, optimize=True)
 
 
 def main():
-    # Les tendances TMDB sont déjà localisées en français.
+    for old in OUT.glob("*.jpg"):
+        old.unlink()
+
     movies = api("/trending/movie/week", language=LANGUAGE).get("results", [])
     shows = api("/trending/tv/week", language=LANGUAGE).get("results", [])
 
-    # 10 wallpapers par exécution: 5 films + 5 séries.
     for item in movies[:5]:
-        make_wallpaper(item, "film")
+        make_wallpaper(item, "movie")
     for item in shows[:5]:
-        make_wallpaper(item, "serie")
+        make_wallpaper(item, "tv")
 
 
 if __name__ == "__main__":
