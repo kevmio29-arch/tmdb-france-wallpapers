@@ -1,6 +1,7 @@
 import {once} from 'node:events'
 import type {IncomingMessage, ServerResponse} from 'node:http'
-import {context, reddit} from '@devvit/web/server'
+import {context, media, reddit} from '@devvit/web/server'
+import {RichTextBuilder} from '@devvit/reddit'
 import type {
   PartialJsonValue,
   TriggerResponse,
@@ -84,9 +85,23 @@ async function routeInc(reqMsg: IncomingMessage): Promise<IncCounterRsp> {
 }
 
 async function routeMenuNewPost(): Promise<UiResponse> {
-  const post = await reddit.submitCustomPost({title: context.appSlug})
+  const uploaded = await media.upload({
+    url: 'https://www.gstatic.com/webp/gallery/1.jpg',
+    type: 'image',
+  })
+
+  const richtext = new RichTextBuilder().paragraph((p) => {
+    p.image({mediaUrl: uploaded.mediaUrl})
+  })
+
+  const post = await reddit.submitPost({
+    subredditName: context.subredditName,
+    title: 'Test wallpaper TMDB France',
+    richtext,
+  })
+
   return {
-    showToast: {text: `Post ${post.id} created.`, appearance: 'success'},
+    showToast: {text: `Wallpaper publié : ${post.id}`, appearance: 'success'},
     navigateTo: post.url,
   }
 }
