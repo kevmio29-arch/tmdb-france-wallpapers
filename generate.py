@@ -51,6 +51,7 @@ def fit_cover(im):
 def wrap(draw, text, fnt, max_width, max_lines=4):
     words = (text or "").split()
     lines, line = [], ""
+    truncated = False
     for word in words:
         test = (line + " " + word).strip()
         if draw.textbbox((0, 0), test, font=fnt)[2] <= max_width:
@@ -60,9 +61,15 @@ def wrap(draw, text, fnt, max_width, max_lines=4):
                 lines.append(line)
             line = word
             if len(lines) == max_lines:
+                truncated = True
                 break
     if line and len(lines) < max_lines:
         lines.append(line)
+    if truncated and lines:
+        last = lines[-1]
+        while last and draw.textbbox((0, 0), last + "…", font=fnt)[2] > max_width:
+            last = last[:-1].rstrip()
+        lines[-1] = last + "…"
     return "\n".join(lines)
 
 
