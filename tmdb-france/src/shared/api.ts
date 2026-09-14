@@ -15,6 +15,7 @@ export const Endpoint = {
   OnAppInstall: 'internal/on/app/install',
   OnMenuNewPost: 'internal/on/menu/new-post',
   OnSchedulerPublish: 'internal/scheduler/publish-wallpaper',
+  OnSchedulerInitialBurst: 'internal/scheduler/initial-burst',
 } as const
 
 export const EndpointMethod = {
@@ -23,4 +24,5 @@ export const EndpointMethod = {
   [Endpoint.OnAppInstall]: 'POST',
   [Endpoint.OnMenuNewPost]: 'POST',
   [Endpoint.OnSchedulerPublish]: 'POST',
+  [Endpoint.OnSchedulerInitialBurst]: 'POST',
 } as const satisfies {[endpoint: string]: 'GET' | 'POST'}
