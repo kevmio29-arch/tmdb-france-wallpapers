@@ -25,6 +25,14 @@
   "triggers": {
     "onAppInstall": "/internal/on/app/install"
   },
+  "scheduler": {
+    "tasks": {
+      "publish-wallpaper": {
+        "endpoint": "/internal/scheduler/publish-wallpaper",
+        "cron": "*/10 * * * *"
+      }
+    }
+  },
   "scripts": {
     "dev": "npm run watch"
   },
@@ -33,10 +41,12 @@
   },
   "permissions": {
     "media": true,
+    "redis": true,
     "http": {
       "enable": true,
       "domains": [
-        "raw.githubusercontent.com"
+        "raw.githubusercontent.com",
+        "api.github.com"
       ]
     },
     "reddit": {
