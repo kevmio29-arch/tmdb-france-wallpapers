@@ -1,9 +1,10 @@
 import {once} from 'node:events'
 import type {IncomingMessage, ServerResponse} from 'node:http'
-import {context, media, reddit} from '@devvit/web/server'
+import {context, media, reddit, redis} from '@devvit/web/server'
 import {RichTextBuilder} from '@devvit/reddit'
 import type {
   PartialJsonValue,
+  TaskResponse,
   TriggerResponse,
   UiResponse,
 } from '@devvit/web/shared'
@@ -22,10 +23,11 @@ type AnyRsp =
   | IncCounterRsp
   | UiResponse
   | TriggerResponse
+  | TaskResponse
   | ErrorRsp
 
-const WALLPAPER_URL =
-  'https://raw.githubusercontent.com/kevmio29-arch/tmdb-france-wallpapers/main/wallpapers/film_1101383_2026_La%20Fin%20d_Oak%20Street.jpg'
+const GITHUB_WALLPAPERS_API =
+  'https://api.github.com/repos/kevmio29-arch/tmdb-france-wallpapers/contents/wallpapers?ref=main'
 
 export async function onReq(
   reqMsg: IncomingMessage,
@@ -61,6 +63,9 @@ async function route(
       case Endpoint.OnMenuNewPost:
         rsp = await routeMenuNewPost()
         break
+      case Endpoint.OnSchedulerPublish:
+        rsp = await routeSchedulerPublish()
+        break
       case Endpoint.OnAppInstall:
         rsp = await routeAppInstall()
         break
@@ -88,25 +93,60 @@ async function routeInc(reqMsg: IncomingMessage): Promise<IncCounterRsp> {
 }
 
 async function routeMenuNewPost(): Promise<UiResponse> {
-  const uploaded = await media.upload({
-    url: WALLPAPER_URL,
-    type: 'image',
-  })
+  const result = await publishNextWallpaper()
+  return {
+    showToast: {text: `Wallpaper publié : ${result.title}`, appearance: 'success'},
+    navigateTo: result.url,
+  }
+}
 
+async function routeSchedulerPublish(): Promise<TaskResponse> {
+  await publishNextWallpaper()
+  return {status: 'ok'}
+}
+
+async function publishNextWallpaper(): Promise<{title: string; url: string}> {
+  const response = await fetch(GITHUB_WALLPAPERS_API, {
+    headers: {Accept: 'application/vnd.github+json'},
+  })
+  if (!response.ok) {
+    throw Error(`GitHub wallpapers request failed: ${response.status}`)
+  }
+
+  const files = (await response.json()) as Array<{name: string; type: string}>
+  const wallpapers = files
+    .filter((file) => file.type === 'file' && file.name.toLowerCase().endsWith('.jpg'))
+    .map((file) => file.name)
+    .sort((a, b) => a.localeCompare(b, 'fr'))
+
+  if (wallpapers.length === 0) throw Error('No wallpapers found')
+
+  const nextRaw = await redis.get('wallpaper:next-index')
+  const nextIndex = nextRaw === null ? 0 : Number(nextRaw)
+  const safeIndex = Number.isFinite(nextIndex) ? nextIndex : 0
+  const index = safeIndex % wallpapers.length
+  const fileName = wallpapers[index]
+
+  await redis.set('wallpaper:next-index', String(index + 1))
+
+  const url = `https://raw.githubusercontent.com/kevmio29-arch/tmdb-france-wallpapers/main/wallpapers/${encodeURIComponent(fileName)}`
+  const title = fileName
+    .replace(/\.jpg$/i, '')
+    .replace(/^(film|serie)_\d+_\d+_/, '')
+    .replace(/_/g, ' ')
+
+  const uploaded = await media.upload({url, type: 'image'})
   const richtext = new RichTextBuilder().paragraph((p) => {
     p.image({mediaUrl: uploaded.mediaUrl})
   })
 
-  const post = await reddit.submitPost({
+  await reddit.submitPost({
     subredditName: context.subredditName,
-    title: 'La Fin d’Oak Street | TMDB France',
+    title: `${title} | TMDB France`,
     richtext,
   })
 
-  return {
-    showToast: {text: `Wallpaper publié : ${post.id}`, appearance: 'success'},
-    navigateTo: post.url,
-  }
+  return {title, url}
 }
 
 async function routeAppInstall(): Promise<TriggerResponse> {
