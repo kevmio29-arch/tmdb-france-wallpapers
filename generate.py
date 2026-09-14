@@ -185,16 +185,49 @@ def make_wallpaper(item, media_type):
     bg.convert("RGB").save(OUT / f"{filename}.jpg", quality=94, optimize=True)
 
 
+def collect_items(media_type, pages=5):
+    """Collect a large French catalogue from several popular TMDB pages."""
+    results = []
+    seen = set()
+    endpoint = "/discover/movie" if media_type == "movie" else "/discover/tv"
+    date_sort = "primary_release_date.desc" if media_type == "movie" else "first_air_date.desc"
+
+    # Mix popularity and recent releases to avoid getting 200 nearly identical titles.
+    for sort_by in ["popularity.desc", date_sort]:
+        for page in range(1, pages + 1):
+            params = {
+                "language": LANGUAGE,
+                "sort_by": sort_by,
+                "page": page,
+                "include_adult": "false",
+                "include_video": "false",
+            }
+            if media_type == "movie":
+                params["vote_count.gte"] = 20
+            else:
+                params["vote_count.gte"] = 10
+            data = api(endpoint, **params)
+            for item in data.get("results", []):
+                item_id = item.get("id")
+                if item_id and item_id not in seen and item.get("backdrop_path"):
+                    seen.add(item_id)
+                    results.append(item)
+    return results
+
+
 def main():
     for old in OUT.glob("*.jpg"):
         old.unlink()
 
-    movies = api("/trending/movie/week", language=LANGUAGE).get("results", [])
-    shows = api("/trending/tv/week", language=LANGUAGE).get("results", [])
+    # 200 fonds : 100 films + 100 séries.
+    movies = collect_items("movie", pages=5)[:100]
+    shows = collect_items("tv", pages=5)[:100]
 
-    for item in movies[:5]:
+    print(f"Génération : {len(movies)} films + {len(shows)} séries")
+
+    for item in movies:
         make_wallpaper(item, "movie")
-    for item in shows[:5]:
+    for item in shows:
         make_wallpaper(item, "tv")
 
 
