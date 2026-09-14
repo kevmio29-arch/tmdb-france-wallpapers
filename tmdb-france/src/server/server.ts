@@ -29,6 +29,8 @@ type AnyRsp =
 const GITHUB_WALLPAPERS_API =
   'https://api.github.com/repos/kevmio29-arch/tmdb-france-wallpapers/contents/wallpapers?ref=main'
 
+const INITIAL_BURST_LIMIT = 20
+
 export async function onReq(
   reqMsg: IncomingMessage,
   rspMsg: ServerResponse,
@@ -66,6 +68,9 @@ async function route(
       case Endpoint.OnSchedulerPublish:
         rsp = await routeSchedulerPublish()
         break
+      case Endpoint.OnSchedulerInitialBurst:
+        rsp = await routeSchedulerInitialBurst()
+        break
       case Endpoint.OnAppInstall:
         rsp = await routeAppInstall()
         break
@@ -102,6 +107,19 @@ async function routeMenuNewPost(): Promise<UiResponse> {
 
 async function routeSchedulerPublish(): Promise<TaskResponse> {
   await publishNextWallpaper()
+  return {status: 'ok'}
+}
+
+async function routeSchedulerInitialBurst(): Promise<TaskResponse> {
+  const rawCount = await redis.get('wallpaper:initial-burst-count')
+  const count = rawCount === null ? 0 : Number(rawCount)
+
+  if (Number.isFinite(count) && count >= INITIAL_BURST_LIMIT) {
+    return {status: 'ok'}
+  }
+
+  await publishNextWallpaper()
+  await redis.incrBy('wallpaper:initial-burst-count', 1)
   return {status: 'ok'}
 }
 
