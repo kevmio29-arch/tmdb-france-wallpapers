@@ -24,6 +24,9 @@ type AnyRsp =
   | TriggerResponse
   | ErrorRsp
 
+const WALLPAPER_URL =
+  'https://raw.githubusercontent.com/kevmio29-arch/tmdb-france-wallpapers/main/wallpapers/film_1101383_2026_La%20Fin%20d_Oak%20Street.jpg'
+
 export async function onReq(
   reqMsg: IncomingMessage,
   rspMsg: ServerResponse,
@@ -86,7 +89,7 @@ async function routeInc(reqMsg: IncomingMessage): Promise<IncCounterRsp> {
 
 async function routeMenuNewPost(): Promise<UiResponse> {
   const uploaded = await media.upload({
-    url: 'https://www.gstatic.com/webp/gallery/1.jpg',
+    url: WALLPAPER_URL,
     type: 'image',
   })
 
@@ -96,7 +99,7 @@ async function routeMenuNewPost(): Promise<UiResponse> {
 
   const post = await reddit.submitPost({
     subredditName: context.subredditName,
-    title: 'Test wallpaper TMDB France',
+    title: 'La Fin d’Oak Street | TMDB France',
     richtext,
   })
 
