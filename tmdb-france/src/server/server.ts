@@ -1,7 +1,6 @@
 import {once} from 'node:events'
 import type {IncomingMessage, ServerResponse} from 'node:http'
 import {context, media, reddit, redis} from '@devvit/web/server'
-import {RichTextBuilder} from '@devvit/reddit'
 import type {
   PartialJsonValue,
   TaskResponse,
@@ -154,14 +153,12 @@ async function publishNextWallpaper(): Promise<{title: string; url: string}> {
     .replace(/_/g, ' ')
 
   const uploaded = await media.upload({url, type: 'image'})
-  const richtext = new RichTextBuilder().paragraph((p) => {
-    p.image({mediaUrl: uploaded.mediaUrl})
-  })
 
   await reddit.submitPost({
     subredditName: context.subredditName,
     title: `${title} | TMDB France`,
-    richtext,
+    kind: 'image',
+    imageUrls: [uploaded.mediaUrl],
   })
 
   return {title, url}
