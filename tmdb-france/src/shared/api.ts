@@ -14,6 +14,7 @@ export const Endpoint = {
   IncCounter: 'api/counter/inc',
   OnAppInstall: 'internal/on/app/install',
   OnMenuNewPost: 'internal/on/menu/new-post',
+  OnSchedulerPublish: 'internal/scheduler/publish-wallpaper',
 } as const
 
 export const EndpointMethod = {
@@ -21,4 +22,5 @@ export const EndpointMethod = {
   [Endpoint.IncCounter]: 'POST',
   [Endpoint.OnAppInstall]: 'POST',
   [Endpoint.OnMenuNewPost]: 'POST',
+  [Endpoint.OnSchedulerPublish]: 'POST',
 } as const satisfies {[endpoint: string]: 'GET' | 'POST'}
