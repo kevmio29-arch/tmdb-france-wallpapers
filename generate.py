@@ -92,7 +92,7 @@ def get_logo(media_type, media_id):
     return logos[0].get("file_path")
 
 
-def paste_logo(base, logo_path, max_width=720, max_height=220, x=95, y=120):
+def paste_logo(base, logo_path, max_width=850, max_height=260, x=95, y=90):
     if not logo_path:
         return False
     try:
@@ -133,8 +133,8 @@ def make_wallpaper(item, media_type):
     px = grad.load()
     for x in range(W):
         t = x / W
-        value = int(205 * (1 - t / 0.62) ** 1.55) if t < 0.62 else 0
-        px[x, 0] = max(0, min(205, value))
+        value = int(215 * (1 - t / 0.68) ** 1.55) if t < 0.68 else 0
+        px[x, 0] = max(0, min(215, value))
     grad = grad.resize((W, H))
     overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     overlay.putalpha(grad)
@@ -142,14 +142,14 @@ def make_wallpaper(item, media_type):
 
     draw = ImageDraw.Draw(bg)
     title_font = font(82, bold=True)
-    meta_font = font(31)
-    body_font = font(33)
+    meta_font = font(34)
+    body_font = font(36)
 
     x = 95
     logo_path = get_logo(media_type, item["id"])
-    logo_ok = paste_logo(bg, logo_path, x=x, y=120)
+    logo_ok = paste_logo(bg, logo_path, x=x, y=90)
 
-    title_y = 365 if logo_ok else 300
+    title_y = 365 if logo_ok else 285
     if not logo_ok:
         draw.text((x + 3, title_y + 3), title, font=title_font, fill=(0, 0, 0, 220))
         draw.text((x, title_y), title, font=title_font, fill="white")
@@ -169,8 +169,8 @@ def make_wallpaper(item, media_type):
     draw.text((x, title_y + 5), meta, font=meta_font, fill=(215, 215, 215, 255))
 
     if overview:
-        text = wrap(draw, overview, body_font, 760, 4)
-        draw.multiline_text((x, title_y + 65), text, font=body_font, fill=(245, 245, 245, 255), spacing=12)
+        text = wrap(draw, overview, body_font, 820, 4)
+        draw.multiline_text((x, title_y + 68), text, font=body_font, fill=(245, 245, 245, 255), spacing=12)
 
     prefix = "film" if media_type == "movie" else "serie"
     filename = f"{prefix}_{item['id']}_{year}_{title}".replace("/", "_").replace("\\", "_")
