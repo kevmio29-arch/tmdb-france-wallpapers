@@ -1,0 +1,49 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "tmdb-france",
+  "post": {
+    "entrypoints": {
+      "default": {
+        "entry": "splash.html"
+      },
+      "game": {
+        "entry": "game.html"
+      }
+    }
+  },
+  "server": {},
+  "menu": {
+    "items": [
+      {
+        "label": "[tmdb-france] New Post",
+        "description": "Create a new tmdb-france post.",
+        "location": "subreddit",
+        "endpoint": "/internal/on/menu/new-post"
+      }
+    ]
+  },
+  "triggers": {
+    "onAppInstall": "/internal/on/app/install"
+  },
+  "scripts": {
+    "dev": "npm run watch"
+  },
+  "dev": {
+    "subreddit": "tmdb_france_dev"
+  },
+  "permissions": {
+    "media": true,
+    "http": {
+      "enable": true,
+      "domains": [
+        "raw.githubusercontent.com"
+      ]
+    },
+    "reddit": {
+      "enable": true,
+      "asUser": [
+        "SUBMIT_POST"
+      ]
+    }
+  }
+}
