@@ -152,13 +152,11 @@ async function publishNextWallpaper(): Promise<{title: string; url: string}> {
     .replace(/^(film|serie)_\d+_\d+_/, '')
     .replace(/_/g, ' ')
 
-  const uploaded = await media.upload({url, type: 'image'})
-
   await reddit.submitPost({
     subredditName: context.subredditName,
     title: `${title} | TMDB France`,
-    kind: 'image',
-    imageUrls: [uploaded.mediaUrl],
+    kind: 'link',
+    url,
   })
 
   return {title, url}
