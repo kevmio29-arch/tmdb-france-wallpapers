@@ -176,7 +176,7 @@ def make_wallpaper(item, media_type):
     draw.text((x, title_y + 5), meta, font=meta_font, fill=(215, 215, 215, 255))
 
     if overview:
-        text = wrap(draw, overview, body_font, 820, 5)
+        text = wrap(draw, overview, body_font, 820, 6)
         draw.multiline_text((x, title_y + 68), text, font=body_font, fill=(245, 245, 245, 255), spacing=12)
 
     prefix = "film" if media_type == "movie" else "serie"
