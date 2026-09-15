@@ -157,8 +157,8 @@ async function publishNextWallpaper(): Promise<{title: string; url: string}> {
   await reddit.submitPost({
     subredditName: context.subredditName,
     title: `${title} | TMDB France`,
-    kind: 'image',
-    imageUrls: [uploaded.mediaUrl],
+    kind: 'link',
+    url: uploaded.mediaUrl,
   })
 
   return {title, url}
