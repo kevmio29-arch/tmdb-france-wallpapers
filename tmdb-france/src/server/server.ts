@@ -1,6 +1,6 @@
 import {once} from 'node:events'
 import type {IncomingMessage, ServerResponse} from 'node:http'
-import {context, media, reddit, redis} from '@devvit/web/server'
+import {context, reddit, redis} from '@devvit/web/server'
 import type {
   PartialJsonValue,
   TaskResponse,
@@ -152,13 +152,11 @@ async function publishNextWallpaper(): Promise<{title: string; url: string}> {
     .replace(/^(film|serie)_\d+_\d+_/, '')
     .replace(/_/g, ' ')
 
-  const uploaded = await media.upload({url, type: 'image'})
-
   await reddit.submitPost({
     subredditName: context.subredditName,
     title: `${title} | TMDB France`,
-    kind: 'link',
-    url: uploaded.mediaUrl,
+    kind: 'image',
+    imageUrls: [url],
   })
 
   return {title, url}
